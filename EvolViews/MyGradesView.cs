@@ -55,65 +55,110 @@ public class MyGradesView : IEvolView
             return panel;
         }
         
-        var gradesListPanel = new StackPanel
+        // Group grades by subject name for robust grouping
+        var gradesBySubject = grades
+            .GroupBy(g => g.Subject?.Name ?? "Ismeretlen tantárgy")
+            .OrderBy(group => group.Key);
+
+        var subjectsPanel = new StackPanel { Spacing = 25 }; // Main panel for all subjects sections
+
+        foreach (var subjectGroup in gradesBySubject)
         {
-            Spacing = 10
-        };
+            var subjectName = subjectGroup.Key;
+            var subjectAverage = subjectGroup.Average(g => g.Value);
 
-        foreach (var grade in grades.OrderByDescending(g => g.Date))
-        {
-            var gradeCard = new Border
+            var subjectSectionPanel = new StackPanel { Spacing = 10 };
+
+            // --- Subject Header with Average ---
+            var subjectHeaderGrid = new Grid
             {
-                Background = Brushes.White,
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(15),
-                BoxShadow = new BoxShadows(new BoxShadow { Blur = 8, OffsetX = 0, OffsetY = 2, Color = Color.Parse("#20000000") })
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 5)
             };
-
-            var cardGrid = new Grid
+            
+            subjectHeaderGrid.Children.Add(new TextBlock
             {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto")
+                Text = subjectName,
+                FontWeight = FontWeight.Bold,
+                FontSize = 22,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            var subjectAvgValueText = new TextBlock
+            {
+                Text = subjectAverage.ToString("F2", CultureInfo.InvariantCulture),
+                FontWeight = FontWeight.Bold,
+                FontSize = 22,
+                Foreground = GetAverageBrush(subjectAverage),
+                VerticalAlignment = VerticalAlignment.Center
             };
+            Grid.SetColumn(subjectAvgValueText, 1);
+            subjectHeaderGrid.Children.Add(subjectAvgValueText);
+            
+            subjectSectionPanel.Children.Add(subjectHeaderGrid);
 
-            var subjectDetailsPanel = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-            subjectDetailsPanel.Children.Add(new TextBlock { Text = grade.Subject?.Name ?? "Ismeretlen tantárgy", FontWeight = FontWeight.SemiBold, FontSize = 16 });
-            subjectDetailsPanel.Children.Add(new TextBlock { Text = grade.Date.ToString("yyyy. MMMM dd."), FontSize = 12, Foreground = Brushes.Gray });
-            Grid.SetColumn(subjectDetailsPanel, 0);
+            // --- List of Grades for this Subject ---
+            var gradesListPanel = new StackPanel { Spacing = 10 };
 
-            var gradeCircle = new Border
+            foreach (var grade in subjectGroup.OrderByDescending(g => g.Date))
             {
-                Width = 48,
-                Height = 48,
-                CornerRadius = new CornerRadius(24),
-                Background = GetGradeBrush(grade.Value),
-                Child = new TextBlock
+                var gradeCard = new Border
                 {
-                    Text = grade.Value.ToString(),
-                    Foreground = Brushes.White,
-                    FontSize = 22,
-                    FontWeight = FontWeight.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
-            };
-            Grid.SetColumn(gradeCircle, 1);
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15),
+                    BoxShadow = new BoxShadows(new BoxShadow { Blur = 8, OffsetX = 0, OffsetY = 2, Color = Color.Parse("#20000000") })
+                };
 
-            cardGrid.Children.Add(subjectDetailsPanel);
-            cardGrid.Children.Add(gradeCircle);
-            gradeCard.Child = cardGrid;
+                var cardGrid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,Auto")
+                };
 
-            gradesListPanel.Children.Add(gradeCard);
+                var gradeDetailsPanel = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+                gradeDetailsPanel.Children.Add(new TextBlock { Text = grade.Date.ToString("yyyy. MMMM dd."), FontSize = 12, Foreground = Brushes.Gray });
+                Grid.SetColumn(gradeDetailsPanel, 0);
+
+                var gradeCircle = new Border
+                {
+                    Width = 48,
+                    Height = 48,
+                    CornerRadius = new CornerRadius(24),
+                    Background = GetGradeBrush(grade.Value),
+                    Child = new TextBlock
+                    {
+                        Text = grade.Value.ToString(),
+                        Foreground = Brushes.White,
+                        FontSize = 22,
+                        FontWeight = FontWeight.Bold,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                };
+                Grid.SetColumn(gradeCircle, 1);
+
+                cardGrid.Children.Add(gradeDetailsPanel);
+                cardGrid.Children.Add(gradeCircle);
+                gradeCard.Child = cardGrid;
+
+                gradesListPanel.Children.Add(gradeCard);
+            }
+            
+            subjectSectionPanel.Children.Add(gradesListPanel);
+            subjectsPanel.Children.Add(subjectSectionPanel);
         }
-        
-        panel.Children.Add(gradesListPanel);
+    
+        panel.Children.Add(subjectsPanel);
 
+        // --- Overall Average Section ---
         double average = grades.Average(g => g.Value);
         var averageCard = new Border
         {
             Background = new SolidColorBrush(Color.Parse("#F5F5F5")),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(15),
-            Margin = new Thickness(0, 15, 0, 0)
+            Margin = new Thickness(0, 25, 0, 0)
         };
         
         var averageGrid = new Grid
