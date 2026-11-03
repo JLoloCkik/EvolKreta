@@ -14,7 +14,7 @@ public class MyGradesView : IEvolView
     private IStudentContext? _context;
 
     public new string Name => "Jegyeim";
-    public string Description => "Megszerzett érdemjegyek megtekintése és átlagszámítás.";
+    public string Description => "A rögzített jegyeid, tantárgyi és teljes átlagod megjelenítése.";
 
     public MyGradesView() { }
 
@@ -25,192 +25,157 @@ public class MyGradesView : IEvolView
 
     public Control CreateView()
     {
-        var panel = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Spacing = 15,
-            Margin = new Thickness(20)
-        };
-
-        var titleBlock = new TextBlock
-        {
-            Text = "Érdemjegyeim",
-            FontSize = 28,
-            FontWeight = FontWeight.Bold,
-            Margin = new Thickness(0, 0, 0, 10)
-        };
-        panel.Children.Add(titleBlock);
+        var mainPanel = new StackPanel { Margin = new Thickness(20) };
 
         if (_context == null)
         {
-            panel.Children.Add(new TextBlock { Text = "Hiba: A nézet kontextusa nem elérhető." });
-            return panel;
+            mainPanel.Children.Add(new TextBlock { Text = "Hiba: A nézet nincs megfelelően konfigurálva.", Foreground = Brushes.Red });
+            return mainPanel;
         }
 
         var grades = _context.GetMyGrades();
 
         if (grades == null || !grades.Any())
         {
-            panel.Children.Add(new TextBlock { Text = "Nincsenek rögzített jegyeid.", HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 50) });
-            return panel;
+            mainPanel.Children.Add(new TextBlock { Text = "Nincsenek rögzített jegyeid.", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            return mainPanel;
         }
-        
-        // Group grades by subject name for robust grouping
-        var gradesBySubject = grades
-            .GroupBy(g => g.Subject?.Name ?? "Ismeretlen tantárgy")
-            .OrderBy(group => group.Key);
 
-        var subjectsPanel = new StackPanel { Spacing = 25 }; // Main panel for all subjects sections
-
-        foreach (var subjectGroup in gradesBySubject)
+        // --- Fő átlag --- 
+        var overallAverage = grades.Average(g => g.Value);
+        var overallAverageCard = new Border
         {
-            var subjectName = subjectGroup.Key;
-            var subjectAverage = subjectGroup.Average(g => g.Value);
-
-            var subjectSectionPanel = new StackPanel { Spacing = 10 };
-
-            // --- Subject Header with Average ---
-            var subjectHeaderGrid = new Grid
-            {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 5)
-            };
-            
-            subjectHeaderGrid.Children.Add(new TextBlock
-            {
-                Text = subjectName,
-                FontWeight = FontWeight.Bold,
-                FontSize = 22,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            var subjectAvgValueText = new TextBlock
-            {
-                Text = subjectAverage.ToString("F2", CultureInfo.InvariantCulture),
-                FontWeight = FontWeight.Bold,
-                FontSize = 22,
-                Foreground = GetAverageBrush(subjectAverage),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(subjectAvgValueText, 1);
-            subjectHeaderGrid.Children.Add(subjectAvgValueText);
-            
-            subjectSectionPanel.Children.Add(subjectHeaderGrid);
-
-            // --- List of Grades for this Subject ---
-            var gradesListPanel = new StackPanel { Spacing = 10 };
-
-            foreach (var grade in subjectGroup.OrderByDescending(g => g.Date))
-            {
-                var gradeCard = new Border
-                {
-                    Background = Brushes.White,
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(15),
-                    BoxShadow = new BoxShadows(new BoxShadow { Blur = 8, OffsetX = 0, OffsetY = 2, Color = Color.Parse("#20000000") })
-                };
-
-                var cardGrid = new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto")
-                };
-
-                var gradeDetailsPanel = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-                gradeDetailsPanel.Children.Add(new TextBlock { Text = grade.Date.ToString("yyyy. MMMM dd."), FontSize = 12, Foreground = Brushes.Gray });
-                Grid.SetColumn(gradeDetailsPanel, 0);
-
-                var gradeCircle = new Border
-                {
-                    Width = 48,
-                    Height = 48,
-                    CornerRadius = new CornerRadius(24),
-                    Background = GetGradeBrush(grade.Value),
-                    Child = new TextBlock
-                    {
-                        Text = grade.Value.ToString(),
-                        Foreground = Brushes.White,
-                        FontSize = 22,
-                        FontWeight = FontWeight.Bold,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                };
-                Grid.SetColumn(gradeCircle, 1);
-
-                cardGrid.Children.Add(gradeDetailsPanel);
-                cardGrid.Children.Add(gradeCircle);
-                gradeCard.Child = cardGrid;
-
-                gradesListPanel.Children.Add(gradeCard);
-            }
-            
-            subjectSectionPanel.Children.Add(gradesListPanel);
-            subjectsPanel.Children.Add(subjectSectionPanel);
-        }
-    
-        panel.Children.Add(subjectsPanel);
-
-        // --- Overall Average Section ---
-        double average = grades.Average(g => g.Value);
-        var averageCard = new Border
-        {
-            Background = new SolidColorBrush(Color.Parse("#F5F5F5")),
-            CornerRadius = new CornerRadius(8),
+            Background = Brushes.LightGray,
+            CornerRadius = new CornerRadius(10),
             Padding = new Thickness(15),
-            Margin = new Thickness(0, 25, 0, 0)
+            Margin = new Thickness(0, 0, 0, 20),
+            Child = new StackPanel
+            {
+                Spacing = 5,
+                Children =
+                {
+                    new TextBlock { Text = "Teljes átlag", FontSize = 16, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+                    new TextBlock
+                    {
+                        Text = overallAverage.ToString("F2", CultureInfo.InvariantCulture),
+                        FontSize = 32,
+                        FontWeight = FontWeight.ExtraBold,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    }
+                }
+            }
         };
-        
-        var averageGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        
-        averageGrid.Children.Add(new TextBlock
-        {
-            Text = "Tanulmányi átlag",
-            FontWeight = FontWeight.Bold,
-            FontSize = 18,
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        mainPanel.Children.Add(overallAverageCard);
 
-        var averageValueText = new TextBlock
-        {
-            Text = average.ToString("F2", CultureInfo.InvariantCulture),
-            FontWeight = FontWeight.Bold,
-            FontSize = 26,
-            Foreground = GetAverageBrush(average),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(averageValueText, 1);
-        averageGrid.Children.Add(averageValueText);
-        
-        averageCard.Child = averageGrid;
-        panel.Children.Add(averageCard);
+        // --- Tantárgyi átlagok --- 
+        mainPanel.Children.Add(new TextBlock { Text = "Tantárgyi átlagok", FontSize = 18, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 0, 0, 10) });
+        var subjectAverages = grades
+            .GroupBy(g => g.Subject?.Name ?? "Ismeretlen tantárgy")
+            .Select(group => new { Subject = group.Key, Average = group.Average(g => g.Value) })
+            .OrderBy(a => a.Subject);
 
-        return new ScrollViewer { Content = panel };
-    }
+        var subjectAveragesPanel = new WrapPanel { Orientation = Orientation.Horizontal };
 
-    private IBrush GetGradeBrush(int value)
-    {
-        switch (value)
+        foreach (var subjectAvg in subjectAverages)
         {
-            case 5: return new SolidColorBrush(Color.Parse("#4CAF50"));
-            case 4: return new SolidColorBrush(Color.Parse("#8BC34A"));
-            case 3: return new SolidColorBrush(Color.Parse("#FFC107"));
-            case 2: return new SolidColorBrush(Color.Parse("#FF9800"));
-            case 1: return new SolidColorBrush(Color.Parse("#F44336"));
-            default: return Brushes.Gray;
+            var subjectCard = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 0, 10, 10),
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = subjectAvg.Subject, FontWeight = FontWeight.Bold },
+                        new TextBlock { Text = subjectAvg.Average.ToString("F2", CultureInfo.InvariantCulture), Foreground = Brushes.DarkSlateGray }
+                    }
+                }
+            };
+            subjectAveragesPanel.Children.Add(subjectCard);
         }
+        mainPanel.Children.Add(subjectAveragesPanel);
+
+        // --- Jegyek listája ---
+        mainPanel.Children.Add(new TextBlock { Text = "Rögzített jegyek", FontSize = 18, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 20, 0, 10) });
+        var gradesScrollViewer = new ScrollViewer();
+        var gradesPanel = new StackPanel { Spacing = 10 };
+
+        foreach (var grade in grades.OrderByDescending(g => g.Date))
+        {
+            var gradeCard = new Border
+            {
+                Padding = new Thickness(15),
+                CornerRadius = new CornerRadius(8),
+                Background = Brushes.White,
+                BoxShadow = new BoxShadows(new BoxShadow { Blur = 5, OffsetX = 2, OffsetY = 2, Color = Colors.LightGray })
+            };
+
+            var grid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto, *, Auto")
+            };
+
+            var gradeCircle = new Border
+            {
+                Width = 40, Height = 40,
+                CornerRadius = new CornerRadius(20),
+                Background = GetGradeBrush(grade.Value),
+                Child = new TextBlock
+                {
+                    Text = grade.Value.ToString(),
+                    Foreground = Brushes.White,
+                    FontSize = 18,
+                    FontWeight = FontWeight.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+
+            var subjectText = new TextBlock
+            {
+                Text = grade.Subject?.Name ?? "N/A",
+                FontSize = 16,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(15, 0)
+            };
+
+            var dateText = new TextBlock
+            {
+                Text = grade.Date.ToString("yyyy.MM.dd."),
+                Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            Grid.SetColumn(gradeCircle, 0);
+            Grid.SetColumn(subjectText, 1);
+            Grid.SetColumn(dateText, 2);
+
+            grid.Children.Add(gradeCircle);
+            grid.Children.Add(subjectText);
+            grid.Children.Add(dateText);
+
+            gradeCard.Child = grid;
+            gradesPanel.Children.Add(gradeCard);
+        }
+
+        gradesScrollViewer.Content = gradesPanel;
+        mainPanel.Children.Add(gradesScrollViewer);
+
+        return mainPanel;
     }
-    
-    private IBrush GetAverageBrush(double value)
+
+    private IBrush GetGradeBrush(int grade)
     {
-        if (value >= 4.5) return new SolidColorBrush(Color.Parse("#4CAF50"));
-        if (value >= 3.5) return new SolidColorBrush(Color.Parse("#8BC34A"));
-        if (value >= 2.5) return new SolidColorBrush(Color.Parse("#FFC107"));
-        if (value >= 1.5) return new SolidColorBrush(Color.Parse("#FF9800"));
-        return new SolidColorBrush(Color.Parse("#F44336"));
+        return grade switch
+        {
+            5 => new SolidColorBrush(Color.FromRgb(76, 175, 80)),  // Green
+            4 => new SolidColorBrush(Color.FromRgb(139, 195, 74)), // Light Green
+            3 => new SolidColorBrush(Color.FromRgb(255, 235, 59)), // Yellow
+            2 => new SolidColorBrush(Color.FromRgb(255, 152, 0)),  // Orange
+            1 => new SolidColorBrush(Color.FromRgb(244, 67, 54)),   // Red
+            _ => Brushes.Gray
+        };
     }
 }
