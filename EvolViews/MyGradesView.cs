@@ -34,6 +34,7 @@ public class MyGradesView : IEvolView
         }
 
         var grades = _context.GetMyGrades();
+        var assignments = _context.QueryEntities("TestRecord");
 
         if (grades == null || !grades.Any())
         {
@@ -133,14 +134,35 @@ public class MyGradesView : IEvolView
                 }
             };
 
-            var subjectText = new TextBlock
+            var detailsPanel = new StackPanel
             {
-                Text = grade.Subject?.Name ?? "N/A",
-                FontSize = 16,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(15, 0)
             };
 
+            var subjectText = new TextBlock
+            {
+                Text = grade.Subject?.Name ?? "N/A",
+                FontSize = 16,
+                FontWeight = FontWeight.Bold
+            };
+            detailsPanel.Children.Add(subjectText);
+
+            var relatedAssignment = assignments?.FirstOrDefault(a =>
+                a.Data.TryGetValue("SubjectName", out var subjectName) && subjectName == grade.Subject?.Name &&
+                a.Data.TryGetValue("Date", out var dateString) && DateTime.TryParse(dateString, out var assignmentDate) && assignmentDate.Date == grade.Date.Date);
+
+            if (relatedAssignment != null && relatedAssignment.Data.TryGetValue("Topic", out var topic))
+            {
+                detailsPanel.Children.Add(new TextBlock
+                {
+                    Text = $"Téma: {topic}",
+                    FontSize = 12,
+                    Foreground = Brushes.DarkSlateGray,
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
+            
             var dateText = new TextBlock
             {
                 Text = grade.Date.ToString("yyyy.MM.dd."),
@@ -149,11 +171,11 @@ public class MyGradesView : IEvolView
             };
 
             Grid.SetColumn(gradeCircle, 0);
-            Grid.SetColumn(subjectText, 1);
+            Grid.SetColumn(detailsPanel, 1);
             Grid.SetColumn(dateText, 2);
 
             grid.Children.Add(gradeCircle);
-            grid.Children.Add(subjectText);
+            grid.Children.Add(detailsPanel);
             grid.Children.Add(dateText);
 
             gradeCard.Child = grid;
